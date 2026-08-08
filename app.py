@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 import datetime
 
 st.set_page_config(page_title="短剧账号数据查询后台", layout="wide")
@@ -54,32 +55,43 @@ if st.sidebar.button("退出登录"):
 
 st.title("📊 短剧账号数据自助查询系统")
 
-# 只有管理员或特定人员可以在侧边栏上传数据
-uploaded_file = None
-if "*" in current_user_info["accounts"] or st.session_state.username == "admin":
-    st.sidebar.header("📁 数据管理（管理员专属）")
-    uploaded_file = st.sidebar.file_uploader("上传每日 Excel 报表", type=["xlsx", "xls"])
-else:
-    st.sidebar.info("💡 如需更新最新数据，请联系管理员上传。")
+# 侧边栏文件上传
+uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
 @st.cache_data
-def load_data(file):
-    if file is not None:
-        xls = pd.ExcelFile(file)
-        sheet_name = xls.sheet_names[0]
-        df = pd.read_excel(file, sheet_name=sheet_name)
-        return df
+def load_all_data(uploaded_files_list):
+    all_dfs = []
+    
+    # 1. 如果用户在网页端上传了文件，优先使用网页上传的
+    if uploaded_files_list:
+        for file in uploaded_files_list:
+            try:
+                xls = pd.ExcelFile(file)
+                for sheet in xls.sheet_names:
+                    temp_df = pd.read_excel(file, sheet_name=sheet)
+                    all_dfs.append(temp_df)
+            except Exception as e:
+                pass
+    
+    # 2. 否则，自动加载 GitHub 目录下的所有 Excel 文件
+    else:
+        excel_files = [f for f in os.listdir('.') if f.endswith('.xlsx') or f.endswith('.xls')]
+        for file in excel_files:
+            try:
+                xls = pd.ExcelFile(file)
+                for sheet in xls.sheet_names:
+                    temp_df = pd.read_excel(file, sheet_name=sheet)
+                    all_dfs.append(temp_df)
+            except Exception as e:
+                pass
+                
+    if all_dfs:
+        # 合并所有表格
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+        return combined_df
     return None
 
-import os
-default_files = [f for f in os.listdir('.') if f.endswith('.xlsx') or f.endswith('.xls')]
-
-if uploaded_file is not None:
-    df = load_data(uploaded_file)
-elif default_files:
-    df = load_data(default_files[0])
-else:
-    df = None
+df = load_all_data(uploaded_files)
 
 if df is not None:
     if '视频号昵称' in df.columns:
@@ -105,10 +117,10 @@ if df is not None:
         
         if '日期' in acc_df.columns:
             with col_f2:
-                date_options = sorted(acc_df['日期'].dropna().unique().tolist())
-                selected_date = st.selectbox("选择数据日期/时间段：", ["全部时间"] + date_options)
+                date_options = sorted(acc_df['日期'].dropna().unique().tolist(), reverse=True)
+                selected_date = st.selectbox("选择数据日期/时间段：", ["全部时间"] + [str(d) for d in date_options])
             if selected_date != "全部时间":
-                acc_df = acc_df[acc_df['日期'] == selected_date]
+                acc_df = acc_df[acc_df['日期'].astype(str) == selected_date]
         
         total_videos = len(acc_df)
         total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
@@ -137,6 +149,6 @@ if df is not None:
         with st.expander("查看详细视频明细"):
             st.dataframe(acc_df, use_container_width=True)
     else:
-        st.error("表格中未找到【视频号昵称】列。")
+        st.error("表格中未找到【视频号昵称】列，请检查表头。")
 else:
-    st.info("👈 请管理员在左侧侧边栏上传 Excel 数据文件，或在程序同目录下放置 Excel 表格。")
+    st.info("👈 请在左侧上传 Excel 数据文件，或在 GitHub 仓库中放入 Excel 表格。")
