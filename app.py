@@ -82,22 +82,6 @@ def load_all_data(uploaded_files_list):
                 
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
-        
-        # 智能全表搜寻任何包含“日期”或“时间”的列
-        target_col = None
-        for col in combined_df.columns:
-            if '日期' in str(col) or '时间' in str(col) or 'date' in str(col).lower():
-                target_col = col
-                break
-        
-        # 如果还没找到，默认拿表格里的第二列（通常第一列是序号或账号，第二列往往是日期）
-        if not target_col and len(combined_df.columns) > 1:
-            target_col = combined_df.columns[1]
-            
-        if target_col:
-            combined_df['日期_parsed'] = pd.to_datetime(combined_df[target_col], errors='coerce').dt.date
-            combined_df['日期'] = combined_df[target_col]
-            
         return combined_df
     return None
 
@@ -118,28 +102,10 @@ if df is not None:
         st.divider()
         st.header("🔍 账号数据查询与筛选")
         
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
-        
+        selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
         acc_df = df[df['视频号昵称'] == selected_account].copy()
-        
-        # 日期范围筛选
-        if '日期_parsed' in acc_df.columns and not acc_df['日期_parsed'].isna().all():
-            valid_dates = acc_df['日期_parsed'].dropna()
-            min_date = valid_dates.min()
-            max_date = valid_dates.max()
-            
-            with col_f2:
-                date_range = st.date_input("选择自定义时间段：", value=(min_date, max_date), min_value=min_date, max_value=max_date)
-            
-            if isinstance(date_range, tuple) and len(date_range) == 2:
-                start_d, end_d = date_range
-                acc_df = acc_df[(acc_df['日期_parsed'] >= start_d) & (acc_df['日期_parsed'] <= end_d)]
-        else:
-            with col_f2:
-                st.info("已展示全部时间数据。")
 
+        # 计算核心指标
         total_videos = len(acc_df)
         total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
         total_drama_views = acc_df['剧集播放量'].sum() if '剧集播放量' in acc_df.columns else 0
@@ -162,10 +128,10 @@ if df is not None:
                 广告收益=('广告收益', 'sum')
             ).reset_index().sort_values(by='广告收益', ascending=False)
             
-            st.dataframe(drama_summary, width="stretch")
+            st.dataframe(drama_summary, use_container_width=True)
         
-        with st.expander("👉 点这里展开查看详细视频明细"):
-            st.dataframe(acc_df, width="stretch")
+        st.subheader("📋 详细视频明细数据")
+        st.dataframe(acc_df, use_container_width=True)
     else:
         st.error("表格中未找到【视频号昵称】列，请检查表头。")
 else:
