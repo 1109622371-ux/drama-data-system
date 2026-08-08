@@ -87,9 +87,21 @@ def load_all_data(uploaded_files_list):
                 
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
-        # 统一处理日期格式，方便后续筛选
-        if '日期' in combined_df.columns:
-            combined_df['日期_parsed'] = pd.to_datetime(combined_df['日期'], errors='coerce').dt.date
+        
+        # 智能匹配可能的日期列名
+        possible_date_cols = ['日期', '统计日期', '时间', '日期区间', 'DataDate']
+        found_date_col = None
+        for col in possible_date_cols:
+            if col in combined_df.columns:
+                found_date_col = col
+                break
+                
+        if found_date_col:
+            combined_df['日期_parsed'] = pd.to_datetime(combined_df[found_date_col], errors='coerce').dt.date
+            # 如果原列不叫“日期”，复制一份统一叫“日期”
+            if found_date_col != '日期':
+                combined_df['日期'] = combined_df[found_date_col]
+                
         return combined_df
     return None
 
