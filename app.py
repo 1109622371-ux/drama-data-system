@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-import datetime
 
 st.set_page_config(page_title="短剧账号数据查询后台", layout="wide")
 
@@ -48,14 +47,18 @@ if not st.session_state.logged_in:
 # ==================== 3. 主界面（登录成功后） ====================
 current_user_info = USER_PERMISSIONS[st.session_state.username]
 st.sidebar.success(f"欢迎您，{current_user_info['name']}！")
+
+# 只有管理员（admin）才能在侧边栏看到文件上传组件
+uploaded_files = None
+if st.session_state.username == "admin":
+    uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（管理员专属）", type=["xlsx", "xls"], accept_multiple_files=True)
+
 if st.sidebar.button("退出登录"):
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.rerun()
 
 st.title("📊 短剧账号数据自助查询系统")
-
-uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
 @st.cache_data
 def load_all_data(uploaded_files_list):
@@ -102,8 +105,25 @@ if df is not None:
         st.divider()
         st.header("🔍 账号数据查询与筛选")
         
-        selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
+            
         acc_df = df[df['视频号昵称'] == selected_account].copy()
+
+        # 增加日期/时间段筛选下拉框
+        date_col = None
+        for col in acc_df.columns:
+            if '日期' in str(col) or '时间' in str(col):
+                date_col = col
+                break
+        
+        if date_col:
+            unique_dates = sorted(acc_df[date_col].dropna().unique().tolist())
+            with col_f2:
+                selected_date = st.selectbox("选择统计日期/周期：", ["全部时间"] + unique_dates)
+            if selected_date != "全部时间":
+                acc_df = acc_df[acc_df[date_col] == selected_date]
 
         # 计算核心指标
         total_videos = len(acc_df)
