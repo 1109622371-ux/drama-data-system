@@ -48,7 +48,6 @@ if not st.session_state.logged_in:
 current_user_info = USER_PERMISSIONS[st.session_state.username]
 st.sidebar.success(f"欢迎您，{current_user_info['name']}！")
 
-# 只有管理员（admin）才能在侧边栏看到文件上传组件
 uploaded_files = None
 if st.session_state.username == "admin":
     uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（管理员专属）", type=["xlsx", "xls"], accept_multiple_files=True)
@@ -63,6 +62,8 @@ st.title("📊 短剧账号数据自助查询系统")
 @st.cache_data
 def load_all_data(uploaded_files_list):
     all_dfs = []
+    
+    # 1. 网页端上传的文件
     if uploaded_files_list:
         for file in uploaded_files_list:
             try:
@@ -72,16 +73,17 @@ def load_all_data(uploaded_files_list):
                     all_dfs.append(temp_df)
             except:
                 pass
-    else:
-        excel_files = [f for f in os.listdir('.') if f.endswith('.xlsx') or f.endswith('.xls')]
-        for file in excel_files:
-            try:
-                xls = pd.ExcelFile(file)
-                for sheet in xls.sheet_names:
-                    temp_df = pd.read_excel(file, sheet_name=sheet)
-                    all_dfs.append(temp_df)
-            except:
-                pass
+                
+    # 2. 自动加载 GitHub 根目录下所有的 .xlsx 和 .xls 文件
+    excel_files = [f for f in os.listdir('.') if f.lower().endswith(('.xlsx', '.xls'))]
+    for file in excel_files:
+        try:
+            xls = pd.ExcelFile(file)
+            for sheet in xls.sheet_names:
+                temp_df = pd.read_excel(file, sheet_name=sheet)
+                all_dfs.append(temp_df)
+        except:
+            pass
                 
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
@@ -111,7 +113,7 @@ if df is not None:
             
         acc_df = df[df['视频号昵称'] == selected_account].copy()
 
-        # 增加日期/时间段筛选下拉框
+        # 智能匹配日期列
         date_col = None
         for col in acc_df.columns:
             if '日期' in str(col) or '时间' in str(col):
@@ -119,11 +121,11 @@ if df is not None:
                 break
         
         if date_col:
-            unique_dates = sorted(acc_df[date_col].dropna().unique().tolist())
+            unique_dates = sorted([str(d) for d in acc_df[date_col].dropna().unique().tolist()])
             with col_f2:
                 selected_date = st.selectbox("选择统计日期/周期：", ["全部时间"] + unique_dates)
             if selected_date != "全部时间":
-                acc_df = acc_df[acc_df[date_col] == selected_date]
+                acc_df = acc_df[acc_df[date_col].astype(str) == selected_date]
 
         # 计算核心指标
         total_videos = len(acc_df)
