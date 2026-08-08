@@ -55,14 +55,11 @@ if st.sidebar.button("退出登录"):
 
 st.title("📊 短剧账号数据自助查询系统")
 
-# 侧边栏文件上传（支持多选）
 uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
 @st.cache_data
 def load_all_data(uploaded_files_list):
     all_dfs = []
-    
-    # 1. 优先使用网页端上传的文件
     if uploaded_files_list:
         for file in uploaded_files_list:
             try:
@@ -70,10 +67,8 @@ def load_all_data(uploaded_files_list):
                 for sheet in xls.sheet_names:
                     temp_df = pd.read_excel(file, sheet_name=sheet)
                     all_dfs.append(temp_df)
-            except Exception as e:
+            except:
                 pass
-    
-    # 2. 否则，自动加载 GitHub 目录下的所有 Excel 文件
     else:
         excel_files = [f for f in os.listdir('.') if f.endswith('.xlsx') or f.endswith('.xls')]
         for file in excel_files:
@@ -82,38 +77,27 @@ def load_all_data(uploaded_files_list):
                 for sheet in xls.sheet_names:
                     temp_df = pd.read_excel(file, sheet_name=sheet)
                     all_dfs.append(temp_df)
-            except Exception as e:
+            except:
                 pass
                 
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
         
-        # 智能寻找日期列
-        possible_date_cols = ['日期', '统计日期', '时间', '日期区间', 'DataDate']
-        found_date_col = None
-        for col in possible_date_cols:
-            if col in combined_df.columns:
-                found_date_col = col
+        # 智能全表搜寻任何包含“日期”或“时间”的列
+        target_col = None
+        for col in combined_df.columns:
+            if '日期' in str(col) or '时间' in str(col) or 'date' in str(col).lower():
+                target_col = col
                 break
-                
-        if found_date_col:
-            # 强力清洗日期格式（提取文本中的日期）
-            combined_df['日期_parsed'] = pd.to_datetime(
-                combined_df[found_date_col].astype(str).str.extract(r'(\d{4}[-/年]\d{1,2}[-/月]\d{1,2})')[0], 
-                errors='coerce'
-            ).dt.date
+        
+        # 如果还没找到，默认拿表格里的第二列（通常第一列是序号或账号，第二列往往是日期）
+        if not target_col and len(combined_df.columns) > 1:
+            target_col = combined_df.columns[1]
             
-            # 如果没提取到，尝试直接转换
-            mask = combined_df['日期_parsed'].isna()
-            if mask.any():
-                combined_df.loc[mask, '日期_parsed'] = pd.to_datetime(
-                    combined_df.loc[mask, found_date_col], 
-                    errors='coerce'
-                ).dt.date
-                
-            if found_date_col != '日期':
-                combined_df['日期'] = combined_df[found_date_col]
-                
+        if target_col:
+            combined_df['日期_parsed'] = pd.to_datetime(combined_df[target_col], errors='coerce').dt.date
+            combined_df['日期'] = combined_df[target_col]
+            
         return combined_df
     return None
 
@@ -121,7 +105,6 @@ df = load_all_data(uploaded_files)
 
 if df is not None:
     if '视频号昵称' in df.columns:
-        # 数据权限过滤
         allowed_accounts = current_user_info["accounts"]
         if "*" in allowed_accounts:
             available_accounts = sorted(df['视频号昵称'].dropna().unique().tolist())
@@ -129,7 +112,7 @@ if df is not None:
             available_accounts = [acc for acc in allowed_accounts if acc in df['视频号昵称'].values]
         
         if not available_accounts:
-            st.warning("系统中暂未找到分配给您的账号数据（请检查 Excel 中的视频号昵称是否匹配）。")
+            st.warning("系统中暂未找到分配给您的账号数据。")
             st.stop()
             
         st.divider()
@@ -141,19 +124,14 @@ if df is not None:
         
         acc_df = df[df['视频号昵称'] == selected_account].copy()
         
-        # 自定义时间段筛选
+        # 日期范围筛选
         if '日期_parsed' in acc_df.columns and not acc_df['日期_parsed'].isna().all():
             valid_dates = acc_df['日期_parsed'].dropna()
             min_date = valid_dates.min()
             max_date = valid_dates.max()
             
             with col_f2:
-                date_range = st.date_input(
-                    "选择自定义时间段：",
-                    value=(min_date, max_date),
-                    min_value=min_date,
-                    max_value=max_date
-                )
+                date_range = st.date_input("选择自定义时间段：", value=(min_date, max_date), min_value=min_date, max_value=max_date)
             
             if isinstance(date_range, tuple) and len(date_range) == 2:
                 start_d, end_d = date_range
@@ -162,7 +140,6 @@ if df is not None:
             with col_f2:
                 st.info("已展示全部时间数据。")
 
-        # 计算核心指标
         total_videos = len(acc_df)
         total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
         total_drama_views = acc_df['剧集播放量'].sum() if '剧集播放量' in acc_df.columns else 0
@@ -187,7 +164,7 @@ if df is not None:
             
             st.dataframe(drama_summary, width="stretch")
         
-        with st.expander("查看详细视频明细"):
+        with st.expander("👉 点这里展开查看详细视频明细"):
             st.dataframe(acc_df, width="stretch")
     else:
         st.error("表格中未找到【视频号昵称】列，请检查表头。")
