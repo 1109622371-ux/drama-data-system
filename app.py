@@ -62,7 +62,7 @@ uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（可多选）", 
 def load_all_data(uploaded_files_list):
     all_dfs = []
     
-    # 1. 如果用户在网页端上传了文件，优先使用网页上传的
+    # 1. 优先使用网页端上传的文件
     if uploaded_files_list:
         for file in uploaded_files_list:
             try:
@@ -88,7 +88,7 @@ def load_all_data(uploaded_files_list):
     if all_dfs:
         combined_df = pd.concat(all_dfs, ignore_index=True)
         
-        # 智能匹配可能的日期列名
+        # 智能寻找日期列
         possible_date_cols = ['日期', '统计日期', '时间', '日期区间', 'DataDate']
         found_date_col = None
         for col in possible_date_cols:
@@ -97,8 +97,20 @@ def load_all_data(uploaded_files_list):
                 break
                 
         if found_date_col:
-            combined_df['日期_parsed'] = pd.to_datetime(combined_df[found_date_col], errors='coerce').dt.date
-            # 如果原列不叫“日期”，复制一份统一叫“日期”
+            # 强力清洗日期格式（提取文本中的日期）
+            combined_df['日期_parsed'] = pd.to_datetime(
+                combined_df[found_date_col].astype(str).str.extract(r'(\d{4}[-/年]\d{1,2}[-/月]\d{1,2})')[0], 
+                errors='coerce'
+            ).dt.date
+            
+            # 如果没提取到，尝试直接转换
+            mask = combined_df['日期_parsed'].isna()
+            if mask.any():
+                combined_df.loc[mask, '日期_parsed'] = pd.to_datetime(
+                    combined_df.loc[mask, found_date_col], 
+                    errors='coerce'
+                ).dt.date
+                
             if found_date_col != '日期':
                 combined_df['日期'] = combined_df[found_date_col]
                 
@@ -148,7 +160,7 @@ if df is not None:
                 acc_df = acc_df[(acc_df['日期_parsed'] >= start_d) & (acc_df['日期_parsed'] <= end_d)]
         else:
             with col_f2:
-                st.info("当前数据中未检测到标准日期格式，已展示全部时间。")
+                st.info("已展示全部时间数据。")
 
         # 计算核心指标
         total_videos = len(acc_df)
@@ -173,10 +185,10 @@ if df is not None:
                 广告收益=('广告收益', 'sum')
             ).reset_index().sort_values(by='广告收益', ascending=False)
             
-            st.dataframe(drama_summary, use_container_width=True)
+            st.dataframe(drama_summary, width="stretch")
         
         with st.expander("查看详细视频明细"):
-            st.dataframe(acc_df, use_container_width=True)
+            st.dataframe(acc_df, width="stretch")
     else:
         st.error("表格中未找到【视频号昵称】列，请检查表头。")
 else:
