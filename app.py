@@ -55,7 +55,7 @@ if st.sidebar.button("退出登录"):
 
 st.title("📊 短剧账号数据自助查询系统")
 
-# 侧边栏文件上传
+# 侧边栏文件上传（支持多选）
 uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（可多选）", type=["xlsx", "xls"], accept_multiple_files=True)
 
 @st.cache_data
@@ -86,8 +86,10 @@ def load_all_data(uploaded_files_list):
                 pass
                 
     if all_dfs:
-        # 合并所有表格
         combined_df = pd.concat(all_dfs, ignore_index=True)
+        # 统一处理日期格式，方便后续筛选
+        if '日期' in combined_df.columns:
+            combined_df['日期_parsed'] = pd.to_datetime(combined_df['日期'], errors='coerce').dt.date
         return combined_df
     return None
 
@@ -115,13 +117,28 @@ if df is not None:
         
         acc_df = df[df['视频号昵称'] == selected_account].copy()
         
-        if '日期' in acc_df.columns:
+        # 自定义时间段筛选
+        if '日期_parsed' in acc_df.columns and not acc_df['日期_parsed'].isna().all():
+            valid_dates = acc_df['日期_parsed'].dropna()
+            min_date = valid_dates.min()
+            max_date = valid_dates.max()
+            
             with col_f2:
-                date_options = sorted(acc_df['日期'].dropna().unique().tolist(), reverse=True)
-                selected_date = st.selectbox("选择数据日期/时间段：", ["全部时间"] + [str(d) for d in date_options])
-            if selected_date != "全部时间":
-                acc_df = acc_df[acc_df['日期'].astype(str) == selected_date]
-        
+                date_range = st.date_input(
+                    "选择自定义时间段：",
+                    value=(min_date, max_date),
+                    min_value=min_date,
+                    max_value=max_date
+                )
+            
+            if isinstance(date_range, tuple) and len(date_range) == 2:
+                start_d, end_d = date_range
+                acc_df = acc_df[(acc_df['日期_parsed'] >= start_d) & (acc_df['日期_parsed'] <= end_d)]
+        else:
+            with col_f2:
+                st.info("当前数据中未检测到标准日期格式，已展示全部时间。")
+
+        # 计算核心指标
         total_videos = len(acc_df)
         total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
         total_drama_views = acc_df['剧集播放量'].sum() if '剧集播放量' in acc_df.columns else 0
