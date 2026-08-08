@@ -1,0 +1,142 @@
+import streamlit as st
+import pandas as pd
+import datetime
+
+st.set_page_config(page_title="短剧账号数据查询后台", layout="wide")
+
+# ==================== 1. 账号权限配置表 ====================
+# 你可以在这里自由增减团队成员的账号、密码和他们能查看的【视频号昵称】
+# 如果设置为 ["*"] 代表管理员，可以看到所有账号
+USER_PERMISSIONS = {
+    "admin": {"password": "888", "accounts": ["*"], "name": "管理员（总控）"},
+    "jinggui": {"password": "123", "accounts": ["荆贵漫剧"], "name": "荆贵漫剧负责人"},
+    "youfu": {"password": "123", "accounts": ["看剧最有福"], "name": "看剧最有福负责人"},
+    "erjiang": {"password": "123", "accounts": ["二江的小娇妻"], "name": "二江小娇妻负责人"},
+    "guowang": {"password": "123", "accounts": ["啊过往", "利儿8265"], "name": "多账号运营1组"},
+}
+
+# ==================== 2. 登录状态管理 ====================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+
+if not st.session_state.logged_in:
+    st.title("🔐 短剧运营数据查询后台 - 登录")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### 请输入您的登录凭证")
+        input_user = st.text_input("用户名")
+        input_pass = st.text_input("密码", type="password")
+        if st.button("登录", use_container_width=True):
+            if input_user in USER_PERMISSIONS and USER_PERMISSIONS[input_user]["password"] == input_pass:
+                st.session_state.logged_in = True
+                st.session_state.username = input_user
+                st.rerun()
+            else:
+                st.error("用户名或密码错误，请重新输入！")
+    st.stop()
+
+# ==================== 3. 主界面（登录成功后） ====================
+current_user_info = USER_PERMISSIONS[st.session_state.username]
+st.sidebar.success(f"欢迎您，{current_user_info['name']}！")
+if st.sidebar.button("退出登录"):
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.rerun()
+
+st.title("📊 短剧账号数据自助查询系统")
+
+# 只有管理员或特定人员可以在侧边栏上传数据
+uploaded_file = None
+if "*" in current_user_info["accounts"] or st.session_state.username == "admin":
+    st.sidebar.header("📁 数据管理（管理员专属）")
+    uploaded_file = st.sidebar.file_uploader("上传每日 Excel 报表", type=["xlsx", "xls"])
+else:
+    st.sidebar.info("💡 如需更新最新数据，请联系管理员上传。")
+
+@st.cache_data
+def load_data(file):
+    if file is not None:
+        xls = pd.ExcelFile(file)
+        sheet_name = xls.sheet_names[0]
+        df = pd.read_excel(file, sheet_name=sheet_name)
+        return df
+    return None
+
+# 为了方便，如果管理员没上传，可以默认读取当前目录下的表格（如果有的话）
+import os
+default_files = [f for f in os.listdir('.') if f.endswith('.xlsx') or f.endswith('.xls')]
+
+if uploaded_file is not None:
+    df = load_data(uploaded_file)
+elif default_files:
+    # 默认加载目录下的第一个excel作为演示或底表
+    df = load_data(default_files[0])
+else:
+    df = None
+
+if df is not None:
+    if '视频号昵称' in df.columns:
+        # 数据权限过滤
+        allowed_accounts = current_user_info["accounts"]
+        if "*" in allowed_accounts:
+            available_accounts = sorted(df['视频号昵称'].dropna().unique().tolist())
+        else:
+            available_accounts = [acc for acc in allowed_accounts if acc in df['视频号昵称'].values]
+        
+        if not available_accounts:
+            st.warning("系统中暂未找到分配给您的账号数据。")
+            st.stop()
+            
+        st.divider()
+        st.header("🔍 账号数据查询与筛选")
+        
+        # 筛选条件栏
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
+        
+        # 过滤出当前账号的数据
+        acc_df = df[df['视频号昵称'] == selected_account].copy()
+        
+        # 时间筛选支持（如果表格中有日期或者可以按日期解析）
+        # 这里适配你的日期列格式（例如 '日期' 列）
+        if '日期' in acc_df.columns:
+            with col_f2:
+                date_options = sorted(acc_df['日期'].dropna().unique().tolist())
+                selected_date = st.selectbox("选择数据日期/时间段：", ["全部时间"] + date_options)
+            if selected_date != "全部时间":
+                acc_df = acc_df[acc_df['日期'] == selected_date]
+        
+        # 计算核心指标
+        total_videos = len(acc_df)
+        total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
+        total_drama_views = acc_df['剧集播放量'].sum() if '剧集播放量' in acc_df.columns else 0
+        total_revenue = acc_df['广告收益'].sum() if '广告收益' in acc_df.columns else 0.0
+        mounted_dramas = acc_df['剧目名称'].nunique() if '剧目名称' in acc_df.columns else 0
+        
+        # 展示指标卡片
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("发布视频数", f"{total_videos:,}")
+        col2.metric("视频播放量", f"{total_video_views:,}")
+        col3.metric("剧集播放量", f"{total_drama_views:,}")
+        col4.metric("广告收益 (元)", f"{total_revenue:,.2f}")
+        col5.metric("挂载剧目数", f"{mounted_dramas}")
+        
+        st.subheader(f"📌 [{selected_account}] 挂载剧目及收益明细")
+        if '剧目名称' in acc_df.columns:
+            drama_summary = acc_df.groupby('剧目名称').agg(
+                视频数量=('视频ID', 'count') if '视频ID' in acc_df.columns else ('视频播放量', 'count'),
+                视频播放量=('视频播放量', 'sum'),
+                剧集播放量=('剧集播放量', 'sum'),
+                广告收益=('广告收益', 'sum')
+            ).reset_index().sort_values(by='广告收益', ascending=False)
+            
+            st.dataframe(drama_summary, use_container_width=True)
+        
+        with st.expander("查看详细视频明细"):
+            st.dataframe(acc_df, use_container_width=True)
+    else:
+        st.error("表格中未找到【视频号昵称】列。")
+else:
+    st.info("👈 请管理员在左侧侧边栏上传 Excel 数据文件，或在程序同目录下放置 Excel 表格。")
