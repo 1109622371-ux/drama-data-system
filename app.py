@@ -30,7 +30,8 @@ USER_PERMISSIONS = {
             "丫丫的短剧", 
             "流星的短剧", 
             "华丽的草莓", 
-            "空空的短剧"
+            "空空的短剧",
+            "心香的短剧"
         ], 
         "name": "260460352运营团队"
     },
@@ -65,6 +66,12 @@ uploaded_files = None
 if st.session_state.username == "admin":
     uploaded_files = st.sidebar.file_uploader("上传 Excel 报表（管理员专属）", type=["xlsx", "xls"], accept_multiple_files=True)
 
+# 增加一个清理缓存/刷新数据的按钮
+if st.sidebar.button("🔄 刷新并加载最新数据"):
+    st.cache_data.clear()
+    st.success("缓存已清除，数据已更新！")
+    st.rerun()
+
 if st.sidebar.button("退出登录"):
     st.session_state.logged_in = False
     st.session_state.username = ""
@@ -72,7 +79,6 @@ if st.sidebar.button("退出登录"):
 
 st.title("📊 短剧账号数据自助查询系统")
 
-@st.cache_data
 def load_all_data(uploaded_files_list):
     all_dfs = []
     
