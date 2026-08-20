@@ -23,7 +23,7 @@ USER_PERMISSIONS = {
             "二丫头3037",
             "鸟语9273729937",
             "天生牛马123123",
-            # 保留你之前可能用过的一些旧账号，防止报错
+            # 保留之前用过的一些旧账号，防止报错
             "努力面对一切", 
             "溪风晚晚"
         ], 
@@ -43,41 +43,85 @@ USER_PERMISSIONS = {
         ], 
         "name": "260460352运营团队"
     },
-}
-"wkftianlon": {
-        "password": "wkf.534577554", 
+    "wkftianlon": {
+        "password": "wkf.534577554",
         "accounts": [
-            "别划走短剧", 
-         ], 
+            "别划走短剧"
+        ],
         "name": "wkftianlon运营团队"
     },
-}
-
-"sph6X0oBZDqy0pd": {
-        "password": "lw910703", 
+    "sph6X0oBZDqy0pd": {
+        "password": "lw910703",
         "accounts": [
-            "金秋4498", 
-         ], 
+            "金秋4498"
+        ],
         "name": "sph6X0oBZDqy0pd运营团队"
     },
+    "jiruxue": {
+        "password": "123456",
+        "accounts": [
+            "姬如雪1449"
+        ],
+        "name": "姬如雪运营团队"
+    },
+    "sphXjQxLY0ir5sq": {
+        "password": "Aa3633238",
+        "accounts": [
+            "可可77922375"
+        ],
+        "name": "可可运营团队"
+    },
+    "liulin": {
+        "password": "17803252000",
+        "accounts": [
+            "剧社放映官"
+        ],
+        "name": "剧社放映官运营团队"
+    },
+    "xiaridefeng": {
+        "password": "wang929568677",
+        "accounts": [
+            "多多蔓剧"
+        ],
+        "name": "多多蔓剧运营团队"
+    },
+    "xiao5024yin": {
+        "password": "y502412345",
+        "accounts": [
+            "王华英6302"
+        ],
+        "name": "王华英运营团队"
+    },
+    "Z2767942982": {
+        "password": "2454695953",
+        "accounts": [
+            "小地漫剧"
+        ],
+        "name": "小地漫剧运营团队"
+    },
+    "gegechangfa2015": {
+        "password": "dongxue198697",
+        "accounts": [
+            "格格长发"
+        ],
+        "name": "格格长发运营团队"
+    },
+    "dsww3588": {
+        "password": "dsww3588",
+        "accounts": [
+            "西瓜夜剧场"
+        ],
+        "name": "西瓜夜剧场运营团队"
+    },
+    "W478340463": {
+        "password": "wjy130810",
+        "accounts": [
+            "Junyu0810"
+        ],
+        "name": "Junyu0810运营团队"
+    },
 }
 
-"jiruxue": {
-        "password": "123456", 
-        "accounts": [
-            "姬如雪1449", 
-         ], 
-        "name": "jiruxue运营团队"
-    },
-}
-"sphXjQxLY0ir5sq": {
-        "password": "Aa3633238", 
-        "accounts": [
-            "可可77922375", 
-         ], 
-        "name": "sphXjQxLY0ir5sq运营团队"
-    },
-}
 # ==================== 2. 登录状态管理 ====================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -161,7 +205,7 @@ if df is not None:
             available_accounts = [acc for acc in allowed_accounts if acc in df['视频号昵称'].values]
         
         if not available_accounts:
-            st.warning("系统中暂未找到分配给您的账号数据。")
+            st.warning("系统中暂未找到分配给您的账号数据（请确保已上传包含该视频号的 Excel 表格）。")
             st.stop()
             
         st.divider()
