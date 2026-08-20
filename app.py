@@ -44,7 +44,40 @@ USER_PERMISSIONS = {
         "name": "260460352运营团队"
     },
 }
+"wkftianlon": {
+        "password": "wkf.534577554", 
+        "accounts": [
+            "别划走短剧", 
+         ], 
+        "name": "wkftianlon运营团队"
+    },
+}
 
+"sph6X0oBZDqy0pd": {
+        "password": "lw910703", 
+        "accounts": [
+            "金秋4498", 
+         ], 
+        "name": "sph6X0oBZDqy0pd运营团队"
+    },
+}
+
+"jiruxue": {
+        "password": "123456", 
+        "accounts": [
+            "姬如雪1449", 
+         ], 
+        "name": "jiruxue运营团队"
+    },
+}
+"sphXjQxLY0ir5sq": {
+        "password": "Aa3633238", 
+        "accounts": [
+            "可可77922375", 
+         ], 
+        "name": "sphXjQxLY0ir5sq运营团队"
+    },
+}
 # ==================== 2. 登录状态管理 ====================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
