@@ -48,6 +48,9 @@ USER_PERMISSIONS = {
     "18637343131": {"password": "CM459218", "accounts": ["阳扬扬羊羊"], "name": "阳扬扬羊羊运营团队"},
     "leigong1407": {"password": "leigong1407", "accounts": ["追剧不花钱"], "name": "leigong1407运营团队"},
     "yetingch": {"password": "asd025", "accounts": ["回忆歌社"], "name": "yetingch运营团队"},
+    "liang001": {"password": "123456", "accounts": ["十八爱追剧"], "name": "liang001运营团队"},
+    "dsa123123": {"password": "123456", "accounts": ["王者没有荣耀了"], "name": "dsa123123运营团队"},
+    "13663381856": {"password": "050300", "accounts": ["A花开.138"], "name": "A花开.138运营团队"},
 }
 
 # ==================== 2. 登录状态管理 ====================
