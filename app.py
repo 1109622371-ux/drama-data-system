@@ -51,6 +51,9 @@ USER_PERMISSIONS = {
     "liang001": {"password": "123456", "accounts": ["十八爱追剧"], "name": "liang001运营团队"},
     "dsa123123": {"password": "123456", "accounts": ["王者没有荣耀了"], "name": "dsa123123运营团队"},
     "13663381856": {"password": "050300", "accounts": ["A花开.138"], "name": "A花开.138运营团队"},
+    "yx147258": {"password": "yx147258", "accounts": ["小乖5841"], "name": "小乖运营团队"},
+    "x001": {"password": "aa123456", "accounts": ["我的小店-"], "name": "我的小店运营团队"},
+    "sph0iWyiMieuv4F": {"password": "050300", "accounts": ["随处花开"], "name": "随处花开运营团队"},
 }
 
 # ==================== 2. 登录状态管理 ====================
