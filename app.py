@@ -137,9 +137,13 @@ if df is not None:
             selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
         acc_df = df[df['视频号昵称'] == selected_account].copy()
         
-        # 自动兼容 "变现总收益" 与 "广告收益"
-        rev_col = '变现总收益' if '变现总收益' in acc_df.columns else ('广告收益' if '广告收益' in acc_df.columns else None)
-        
+        # 同时兼容新老表头（"变现总收益"、"广告收益"），若同时存在则相加，确保收益不漏算
+        rev_columns = [col for col in ['变现总收益', '广告收益'] if col in acc_df.columns]
+        if rev_columns:
+            acc_df['综合收益'] = acc_df[rev_columns].sum(axis=1)
+        else:
+            acc_df['综合收益'] = 0.0
+
         date_col = None
         for col in acc_df.columns:
             if '日期' in str(col) or '时间' in str(col):
@@ -155,7 +159,7 @@ if df is not None:
         total_videos = len(acc_df)
         total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
         total_drama_views = acc_df['剧集播放量'].sum() if '剧集播放量' in acc_df.columns else 0
-        total_revenue = acc_df[rev_col].sum() if rev_col and rev_col in acc_df.columns else 0.0
+        total_revenue = acc_df['综合收益'].sum()
         mounted_dramas = acc_df['剧目名称'].nunique() if '剧目名称' in acc_df.columns else 0
         
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -167,17 +171,12 @@ if df is not None:
         
         st.subheader(f"📌 [{selected_account}] 挂载剧目及收益明细")
         if '剧目名称' in acc_df.columns:
-            agg_dict = {
-                '视频数量': ('视频ID', 'count') if '视频ID' in acc_df.columns else ('视频播放量', 'count'),
-                '视频播放量': ('视频播放量', 'sum'),
-                '剧集播放量': ('剧集播放量', 'sum')
-            }
-            if rev_col:
-                agg_dict['收益总额'] = (rev_col, 'sum')
-            
-            drama_summary = acc_df.groupby('剧目名称').agg(**agg_dict).reset_index()
-            sort_col = '收益总额' if '收益总额' in drama_summary.columns else '视频播放量'
-            drama_summary = drama_summary.sort_values(by=sort_col, ascending=False)
+            drama_summary = acc_df.groupby('剧目名称').agg(
+                视频数量=('视频ID', 'count') if '视频ID' in acc_df.columns else ('视频播放量', 'count'),
+                视频播放量=('视频播放量', 'sum'),
+                剧集播放量=('剧集播放量', 'sum'),
+                收益总额=('综合收益', 'sum')
+            ).reset_index().sort_values(by='收益总额', ascending=False)
             st.dataframe(drama_summary, use_container_width=True)
             
         st.subheader("📋 详细视频明细数据")
