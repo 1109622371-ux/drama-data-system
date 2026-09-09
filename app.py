@@ -137,12 +137,13 @@ if df is not None:
             selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
         acc_df = df[df['视频号昵称'] == selected_account].copy()
         
-        # 兼容所有可能的收益表头（优先选用总收入，如果没有则寻找其他收益列）
-        possible_rev_cols = ['剧集总收入', '变现总收益', '广告收益', '剧集广告变现收入', '剧集总激励收入']
-        active_rev_col = next((col for col in possible_rev_cols if col in acc_df.columns), None)
+        # 兼容新老各种收益表头
+        rev_candidates = ['剧集总收入', '变现总收益', '广告收益', '剧集广告变现收入', '剧集总激励收入']
+        active_rev_cols = [col for col in rev_candidates if col in acc_df.columns]
         
-        if active_rev_col:
-            acc_df['综合收益'] = pd.to_numeric(acc_df[active_rev_col], errors='coerce').fillna(0)
+        if active_rev_cols:
+            # 将所有匹配的收益列数值相加作为综合收益
+            acc_df['综合收益'] = acc_df[active_rev_cols].apply(pd.to_numeric, errors='coerce').fillna(0).sum(axis=1)
         else:
             acc_df['综合收益'] = 0.0
 
@@ -158,7 +159,7 @@ if df is not None:
             if selected_date != "全部时间":
                 acc_df = acc_df[acc_df[date_col].astype(str) == selected_date]
         
-        total_videos = len(acc_df)
+        total_videos = len(acc_df[acc_df['视频ID'].notnull()]) if '视频ID' in acc_df.columns else len(acc_df)
         total_video_views = acc_df['视频播放量'].sum() if '视频播放量' in acc_df.columns else 0
         total_drama_views = acc_df['剧集播放量'].sum() if '剧集播放量' in acc_df.columns else 0
         total_revenue = acc_df['综合收益'].sum()
@@ -174,7 +175,7 @@ if df is not None:
         st.subheader(f"📌 [{selected_account}] 挂载剧目及收益明细")
         if '剧目名称' in acc_df.columns:
             drama_summary = acc_df.groupby('剧目名称').agg(
-                视频数量=('视频ID', 'count') if '视频ID' in acc_df.columns else ('视频播放量', 'count'),
+                视频数量=('视频ID', lambda x: x.notnull().sum()) if '视频ID' in acc_df.columns else ('视频播放量', 'count'),
                 视频播放量=('视频播放量', 'sum'),
                 剧集播放量=('剧集播放量', 'sum'),
                 收益总额=('综合收益', 'sum')
