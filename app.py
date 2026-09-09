@@ -137,10 +137,12 @@ if df is not None:
             selected_account = st.selectbox("选择要查看的视频号：", available_accounts)
         acc_df = df[df['视频号昵称'] == selected_account].copy()
         
-        # 同时兼容新老表头（"变现总收益"、"广告收益"），若同时存在则相加，确保收益不漏算
-        rev_columns = [col for col in ['变现总收益', '广告收益'] if col in acc_df.columns]
-        if rev_columns:
-            acc_df['综合收益'] = acc_df[rev_columns].sum(axis=1)
+        # 兼容所有可能的收益表头（优先选用总收入，如果没有则寻找其他收益列）
+        possible_rev_cols = ['剧集总收入', '变现总收益', '广告收益', '剧集广告变现收入', '剧集总激励收入']
+        active_rev_col = next((col for col in possible_rev_cols if col in acc_df.columns), None)
+        
+        if active_rev_col:
+            acc_df['综合收益'] = pd.to_numeric(acc_df[active_rev_col], errors='coerce').fillna(0)
         else:
             acc_df['综合收益'] = 0.0
 
